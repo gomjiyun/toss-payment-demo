@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>결제 페이지</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            background-color: #f9f9f9;
+            padding: 40px;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            max-width: 500px;
+            margin: auto;
+            border-radius: 12px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            margin-top: 0;
+        }
+        input, button {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+        button {
+            background-color: #0064FF;
+            color: white;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #004fcc;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>💳 Toss 결제</h1>
+    <form action="/payment/confirm" method="post">
+        <label>주문자명</label>
+        <input type="text" name="orderName" placeholder="예: 홍길동" required>
+
+        <label>결제 금액 (₩)</label>
+        <input type="number" name="amount" value="1000" min="100" required>
+
+        <button type="submit">결제하기</button>
+    </form>
+</div>
+</body>
+</html>
