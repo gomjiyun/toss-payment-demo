@@ -2,20 +2,26 @@
 package com.example.payment;
 
 import ch.qos.logback.core.net.SyslogOutputStream;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
-
 import java.util.HashMap;
 import java.util.Map;
 
+//ObjecgMapper
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.core.JsonProcessingException;
+
+//responsentity
+import org.springframework.http.ResponseEntity;
 
 
 //@RestController
@@ -38,6 +44,7 @@ public class PaymentController {
 
     @RequestMapping(value = "/request", method = {RequestMethod.GET, RequestMethod.POST})
     public String requestPayment(@ModelAttribute PaymentRequestDto request) {
+
         HttpHeaders headers = new HttpHeaders();
         headers.setBasicAuth(secretKey, "");
 
@@ -54,29 +61,52 @@ public class PaymentController {
         System.out.println(">>> App is starting...2d"); // 이게 뜨는지 확인
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
-        System.out.println(">>> App is starting...3d"); // 이게 뜨는지 확인
 
         String tossUrl = "https://api.tosspayments.com/v1/payments";
 //        return restTemplate.postForEntity(tossUrl, entity, String.class);
-        ResponseEntity<String> response = restTemplate.postForEntity(tossUrl, entity, String.class);
-
-        System.out.println("------------------------"+response.getBody());
 
         try {
-            // JSON 응답에서 checkoutPage URL만 추출해서 리다이렉트
+            ResponseEntity<String> response = restTemplate.postForEntity(tossUrl, entity, String.class);
+
             ObjectMapper mapper = new ObjectMapper();
             JsonNode json = mapper.readTree(response.getBody());
-            String checkoutUrl = json.get("checkoutPage").asText();
-            System.out.println(">>>>>>>>>>>"+checkoutUrl+">>>>>>>>>>>");
-            return "redirect:" + checkoutUrl;
+
+            String redirectUrl = json.path("checkoutPage").asText(); // 성공 시
+            return "redirect:" + redirectUrl;
+
+        } catch (HttpClientErrorException | HttpServerErrorException e) {
+            System.out.println("HTTP 오류 발생: " + e.getStatusCode());
+            System.out.println("응답 내용: " + e.getResponseBodyAsString());
+
+            // Toss 응답 본문 파싱해서 failUrl 추출
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                JsonNode errorJson = mapper.readTree(e.getResponseBodyAsString());
+                String failUrl = errorJson.path("error").path("data").path("failUrl").asText();
+                System.out.println("1111111");
+                if (failUrl != null && !failUrl.isEmpty()) {
+                    return "redirect:" + failUrl;
+                }
+            } catch (JsonProcessingException parseError) {
+                System.out.println("22222222");
+                parseError.printStackTrace();
+            }
+
+            System.out.println("333333");
+            // failUrl도 없거나 JSON 파싱 실패한 경우 기본 에러 페이지로
+            return "redirect:/paymentFail";
+        } catch (JsonMappingException e) {
+            System.out.println("44444");
+            throw new RuntimeException(e);
         } catch (JsonProcessingException e) {
-            e.printStackTrace();
-            return "redirect:/paymentFail";  // 또는 에러 처리 페이지로
+            System.out.println("555555");
+            throw new RuntimeException(e);
         }
+
     }
 
     @GetMapping("/fail")
     public String paymentFail() {
-        return "paymentFail"; // templates/paymentFail.html
+        return "/payment/paymentFail"; // templates/paymentFail.html
     }
 }
